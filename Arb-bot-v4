@@ -1,0 +1,76 @@
+pragma solidity ^0.7.0;
+
+contract ArbitrageBot {
+  // Set the address of the exchanges you want to trade on
+  address exchange1;
+  address exchange2;
+
+  // Set the minimum profit threshold for a trade to be made
+  uint256 minProfitThreshold;
+
+  // Set the amount of tokens to trade at a time
+  uint256 tradeAmount;
+
+  // This event is emitted when a trade is executed
+  event TradeExecuted(uint256 profit);
+
+  // This function will check the prices on the two exchanges and execute
+  // a trade if the profit threshold is met
+  function checkPricesAndTrade() public {
+    // Check that the minimum profit threshold and trade amount are within a reasonable range
+    require(minProfitThreshold > 0 && minProfitThreshold < 1e18, "Invalid minimum profit threshold");
+    require(tradeAmount > 0 && tradeAmount < 1e18, "Invalid trade amount");
+
+    // Get the prices on each exchange
+    uint256 priceOnExchange1;
+    uint256 priceOnExchange2;
+    try {
+      priceOnExchange1 = exchange1.getPrice();
+    } catch (error) {
+      // Handle error
+      return;
+    }
+    try {
+      priceOnExchange2 = exchange2.getPrice();
+    } catch (error) {
+      // Handle error
+      return;
+    }
+
+    // Check that the prices on each exchange are valid
+    require(priceOnExchange1 > 0 && priceOnExchange1 < 1e18, "Invalid price on exchange1");
+    require(priceOnExchange2 > 0 && priceOnExchange2 < 1e18, "Invalid price on exchange2");
+
+    // Calculate the profit if you were to trade on each exchange
+    uint256 profitOnExchange1 = priceOnExchange2 - priceOnExchange1;
+    uint256 profitOnExchange2 = priceOnExchange1 - priceOnExchange2;
+
+    // If the profit on exchange1 is greater than the minimum profit threshold
+    // and greater than the profit on exchange2, execute a trade on exchange1
+    if (profitOnExchange1 >= minProfitThreshold && profitOnExchange1 > profitOnExchange2) {
+      try {
+        exchange1.trade(tradeAmount);
+      } catch (error) {
+        // Handle error
+        return;
+      }
+
+      // Emit event to indicate that a trade was executed
+      emit TradeExecuted(profitOnExchange1);
+    }
+
+    // If the profit on exchange2 is greater than the minimum profit threshold
+    // and greater than the profit on exchange1, execute a trade on exchange2
+    if (profitOnExchange2 >= minProfitThreshold && profitOnExchange2 > profitOnExchange1) {
+      try {
+        exchange2.trade(tradeAmount);
+      } catch (error) {
+        // Handle error
+        return;
+      }
+
+      // Emit event to indicate that a trade was executed
+      emit TradeExecuted(profitOnExchange2);
+    }
+  }
+}
